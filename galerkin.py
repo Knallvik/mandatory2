@@ -103,6 +103,10 @@ class Legendre(FunctionSpace):
     def __init__(self, N, domain=(-1, 1)):
         FunctionSpace.__init__(self, N, domain=domain)
 
+    @property
+    def reference_domain(self):
+        return (-1,1)
+
     def basis_function(self, j, sympy=False):
         if sympy:
             return sp.legendre(j, x)
@@ -116,7 +120,7 @@ class Legendre(FunctionSpace):
 
     def mass_matrix(self):
         diag = [self.L2_norm_sq(i) for i in range(self.N+1)]
-        return sparse.daigs(diag, 0, (self.N+1,self.N+1), format = 'csr')
+        return sparse.diags(diag, 0, (self.N+1,self.N+1), format = 'csr')
 
     def eval(self, uh, xj):
         xj = np.atleast_1d(xj)
@@ -128,6 +132,10 @@ class Chebyshev(FunctionSpace):
 
     def __init__(self, N, domain=(-1, 1)):
         FunctionSpace.__init__(self, N, domain=domain)
+
+    @property
+    def reference_domain(self):
+        return (-1,1)
 
     def basis_function(self, j, sympy=False):
         if sympy:
@@ -141,7 +149,7 @@ class Chebyshev(FunctionSpace):
         return 1/sp.sqrt(1-x**2)
 
     def L2_norm_sq(self, N):
-        if N=0:
+        if N==0:
             return np.pi
         return np.pi/2
 
@@ -303,8 +311,9 @@ class DirichletLegendre(Composite, Legendre):
         self.S = sparse.diags((1, -1), (0, 2), shape=(N+1, N+3), format='csr')
 
     def basis_function(self, j, sympy=False):
-        Q = super(Legendre, self).basis_function(j)-super(Legendre, self).basis_function(j+2)
-        return Q
+        if sympy:
+            return sp.legendre(j, x) - sp.legendre(j+2, x)
+        return Leg.basis(j)-Leg.basis(j+2)
 
 
 class NeumannLegendre(Composite, Legendre):
@@ -315,8 +324,9 @@ class NeumannLegendre(Composite, Legendre):
         self.S = sparse.diags((1, upper_diag), (0, 2), shape=(N+1, N+3), format='csr')
 
     def basis_function(self, j, sympy=False):
-        Q = super(Legendre, self).basis_function(j)-super(Legendre, self).basis_function(j+2)*j*(j+1)/(j+2)/(j+3)
-        return Q
+        if sympy:
+            return sp.legendre(j, x) - sp.legendre(j+2, x)*j*(j+1)/(j+2)/(j+3)
+        return Leg.basis(j)-Leg.basis(j+2)*j*(j+1)/(j+2)/(j+3)
 
 
 class DirichletChebyshev(Composite, Chebyshev):
@@ -338,10 +348,10 @@ class NeumannChebyshev(Composite, Chebyshev):
         self.B = Dirichlet(bc, domain, self.reference_domain)
         self.S = sparse.diags((1, -1), (0, 2), shape=(N+1, N+3), format='csr')
 
-    def basis_function(self, j, sympy=False)
+    def basis_function(self, j, sympy=False):
         if sympy:
-            return j*sp.sin(j*sp.acos(x))/sp.sqrt(1-x**2)
-        return super(Chebyshev, self).derivative_basis_function(j, k=1)
+            return sp.cos(j*sp.acos(x)) - sp.cos((j+2)*sp.acos(x))
+        return Cheb.basis(j)-Cheb.basis(j+2)
 
 
 class BasisFunction:
